@@ -1,36 +1,48 @@
 // Create web server
-const express = require('express');
-const app = express();
-const bodyParser = require('body-parser');
-const fs = require('fs');
+// 1. Load the http module to create an http server.
+var http = require('http');
+var url = require('url');
+var fs = require('fs');
+var path = require('path');
+var mime = require('mime');
+var comments = [];
 
-const COMMENTS_FILE = './comments.json';
+// 2. Configure our HTTP server to respond with Hello World to all requests.
+var server = http.createServer(function (request, response) {
+    var urlObj = url.parse(request.url, true);
+    var pathname = urlObj.pathname;
+    if (pathname == '/') {
+        pathname = '/index.html';
+    }
 
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({extended: true}));
-
-app.use(function(req, res, next) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 'no-cache');
-  next();
+    if (pathname == '/index.html') {
+        fs.readFile(path.join(__dirname, pathname), 'utf-8', function (err, data) {
+            if (err) {
+                console.log(err);
+                response.writeHead(404, 'Not Found', { 'Content-Type': 'text/html' });
+                response.end('<h1>404 Not Found</h1>');
+            } else {
+                response.writeHead(200, 'OK', { 'Content-Type': 'text/html' });
+                response.end(data);
+            }
+        });
+    } else if (pathname == '/addComment') {
+        var comment = urlObj.query;
+        comments.push(comment);
+        response.writeHead(200, 'OK', { 'Content-Type': 'text/plain' });
+        response.end(JSON.stringify(comments));
+    } else {
+        fs.readFile(path.join(__dirname, pathname), function (err, data) {
+            if (err) {
+                console.log(err);
+                response.writeHead(404, 'Not Found', { 'Content-Type': 'text/html' });
+                response.end('<h1>404 Not Found</h1>');
+            } else {
+                response.writeHead(200, 'OK', { 'Content-Type': mime.lookup(pathname) });
+                response.end(data);
+            }
+        });
+    }
 });
 
-app.get('/api/comments', function(req, res) {
-  fs.readFile(COMMENTS_FILE, function(err, data) {
-    if (err) {
-      console.error(err);
-      process.exit(1);
-    }
-    res.json(JSON.parse(data));
-  });
-});
-
-app.post('/api/comments', function(req, res) {
-  fs.readFile(COMMENTS_FILE, function(err, data) {
-    if (err) {
-      console.error(err);
-      process.exit(1);
-    }
-    var comments = JSON.parse(data);
-    var newComment = {
-      id: Date.now(),
+// 3. Listen on port 8000, IP defaults to
